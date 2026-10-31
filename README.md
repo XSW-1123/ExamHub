@@ -1,2 +1,98 @@
-# MealNow-
-把 MealNow 面试题库 docx 做成本地背题网站：608 张卡片、SM-2 间隔重复（Anki 同源）、全文搜索、掌握度统计与学习热力图。纯静态零依赖，双击即用，进度只存本机 localStorage。 Turn a 608-card interview question bank into a local spaced-repetition trainer. SM-2 scheduling (Anki-style), full-text search, mastery stats and a 30-day heatmap. Static, dependency-free, progress stays in localStorage.
+# MealNow 面试背题网站
+
+把《MealNow面试题库（整合版）.docx》里的 **全部内容**（571 道正式题 + 37 张阅读卡，共 608 张卡片）
+做成了一个类似"背单词软件"的本地背题网站：SM-2 间隔重复算法（Anki 同源），
+纯静态、零依赖、数据不出本机。
+
+## 怎么用
+
+**方式一（推荐）**：双击 `index.html`，用浏览器（Chrome / Edge）打开即可。
+
+**方式二**：双击 `start.bat`（需要本机装了 Python），会启动本地服务并自动打开
+http://127.0.0.1:8686/
+
+- 学习进度自动保存在本机浏览器的 localStorage 里，换浏览器 / 换电脑前，
+  先到「我的 → 导出进度」备份成 JSON 文件，在新环境「导入进度」即可无缝继续。
+- 手机想用的话：电脑和手机连同一 WiFi，用方式二启动后，手机浏览器访问
+  `http://<电脑局域网IP>:8686`（注意 Windows 防火墙放行）。
+
+## 功能
+
+| 模块 | 说明 |
+|------|------|
+| 📅 今日计划 | 到期复习 + 每日新题（默认 20 张/天，可调）。评分：😵忘了 / 🤔模糊 / 🙂记得 / 😎简单，按遗忘曲线自动安排下次复习 |
+| 🎯 自由刷题 | 任选一个分类（或全部）顺序/随机刷，不受每日计划限制 |
+| ⭐ 收藏夹 | 卡片右上角 ☆ 收藏，可单独成队背诵 |
+| 📚 题库 | 全部 608 张卡片浏览 + 全文搜索（标题/题号/正文/来源），点击看详情，可重置单卡进度、手动标记掌握 |
+| 📊 统计 | 已掌握数、连续打卡、未来 7 天复习量预测、分类掌握度、近 30 天学习热力图 |
+| ⚙️ 我的 | 每日新题数、新题顺序、主题（浅/深/跟随系统）、来源显隐、进度导出/导入/清空 |
+
+**键盘快捷键**（学习页）：`空格` 翻面 · `1/2/3/4` 评分 · `S` 收藏 · `Esc` 关闭弹层。
+
+## 算法（SM-2，与 Anki 同源）
+
+- 新题/忘了 → 10 分钟后再来；学习中答对 → 明天再见，然后毕业进入长期复习。
+- 复习按卡片难易度（EF 因子 1.3~3.2）拉伸间隔：记得 ≈ 间隔×EF，简单再 ×1.35，
+  模糊只 ×1.2，忘了间隔打 4 折重学。
+- 间隔 ≥ 21 天自动记为"已掌握"。
+
+## 目录结构
+
+```
+├── index.html              # 网站（双击打开）
+├── css/style.css           # 样式（浅色/深色主题）
+├── js/app.js               # 界面逻辑
+├── js/srs.js               # SM-2 间隔重复引擎 + 进度存储
+├── js/marked.min.js        # Markdown 渲染库（MIT，本地化）
+├── data/questions.js       # 题库数据（由 docx 生成，608 张卡片）
+├── tools/build_bank.py     # docx → 题库 解析脚本（含行级覆盖校验）
+├── tools/verify_bank.py    # 独立校验脚本：原文每行都在题库里
+├── start.bat               # 本地服务一键启动（可选）
+├── MealNow面试题库（整合版）.docx   # 原始文档（未改动）
+├── .gitignore              # 忽略 _work/ 提取产物、Python 缓存、系统临时文件
+├── .gitattributes          # 换行规则（.bat 保持 CRLF）与二进制文件声明
+├── .editorconfig           # 统一 UTF-8 / LF / 缩进
+├── .nojekyll               # 让 GitHub Pages 跳过 Jekyll 处理
+└── LICENSE                 # MIT（仅覆盖代码，题库内容版权归原作者）
+```
+
+## 内容完整性保证
+
+网站题库由文档**逐行切片**生成，不做任何删改：
+
+- 解析器按标题边界切卡片，每张卡片 = 原文精确行区间；
+- `tools/build_bank.py` 内置"行覆盖校验"：文档 21332 行中所有非标题行
+  必须被某张卡片覆盖，否则构建失败；
+- `tools/verify_bank.py` 独立二次校验：原文 13716 个非空行逐一反查题库，
+  全部命中（标题→标题字段、来源→src 字段、附录A分组→grp 字段、正文→body 字段）。
+
+最终入库：**正式题 528 道（C00~C18 各章，与章节标题标注的数量逐一相符）
++ 附录 A 项目深挖题 43 道 = 571 道；另有第 0 章项目介绍、附录 B/C/D、
+文档目录等阅读卡 37 张，合计 608 张。**
+
+## 重建题库（可选）
+
+改了 docx 或想重新生成时：
+
+```bash
+python tools/build_bank.py     # 需要已安装 pandoc；会自动重新提取并校验
+python tools/verify_bank.py    # 独立复核
+```
+
+中间产物落在 `_work/`（已在 `.gitignore` 中忽略），脚本需在项目根目录执行。
+
+## 部署到 GitHub Pages
+
+纯静态站点，无构建步骤，推送到 GitHub 后：
+
+1. 仓库 **Settings → Pages**；
+2. **Source** 选 `Deploy from a branch`，分支选 `main`，目录选 `/ (root)`；
+3. 保存后等一分钟，访问 `https://<用户名>.github.io/<仓库名>/`。
+
+`.nojekyll` 已就位，Jekyll 不会改写或忽略任何资源；`data/questions.js`（约 1 MB）
+是普通静态文件，不触及 Pages 的体积限制。学习进度仍只存在访问者本机 localStorage。
+
+## 许可
+
+代码部分为 MIT（见 `LICENSE`）；题库内容版权归原文档作者，仅随仓库作为可复现的示例数据提供。
+`js/marked.min.js` 为第三方 MIT 库。
