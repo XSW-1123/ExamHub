@@ -636,8 +636,10 @@
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const IS_ANDROID = /Android/.test(UA);
   const IS_MOBILE = IS_IOS || IS_ANDROID || /Mobile/.test(UA);
-  // 微信 / QQ / 钉钉等内置浏览器没有安装入口，必须先跳系统浏览器
+  // 微信 / QQ / 钉钉等 App 内置浏览器：连安装入口都没有，必须先跳系统浏览器
   const IS_INAPP = /MicroMessenger|QQ\/|DingTalk|Weibo|AlipayClient|BaiduBoxApp|Quark/i.test(UA);
+  // 没实现 PWA 安装的常见国产浏览器：最多给"添加书签到桌面"这种快捷方式
+  const NO_PWA = /MQQBrowser|UCBrowser|HeyTapBrowser|VivoBrowser|HuaweiBrowser|MiuiBrowser|baiduboxapp|baidubrowser|QIHU|SogouMobileBrowser|LieBao|LenovoBrowser|MeizuBrowser/i.test(UA);
 
   const HINT_KEY = "examhub:install-hint-dismissed";
   let installEvent = null;
@@ -650,7 +652,9 @@
     $("#install-banner").classList.add("hidden");
   }
 
-  /* 各平台安装方式；state 决定是否显示安装按钮与手机引导条 */
+  /* 各平台安装方式；state 决定是否显示安装按钮与手机引导条。
+     注意顺序：只要浏览器真的给出了 beforeinstallprompt，就优先走一键安装，
+     不用"名单"去拦——名单只用来解释那些不装 PWA 的浏览器。 */
   function installGuide() {
     if (isStandalone()) {
       return { state: "installed", tip: "已在应用模式下运行，无需再次安装。", short: "" };
@@ -662,18 +666,25 @@
         short: "",
       };
     }
-    if (!SECURE) {
-      return {
-        state: "insecure",
-        tip: "当前地址不是 https，浏览器不允许安装。手机请改用 https://xsw-1123.github.io/ExamHub/ ；局域网 http 只能当网页看。",
-        short: "",
-      };
-    }
     if (installEvent) {
       return {
         state: "prompt",
         tip: "点下面的按钮即可安装：桌面 / 主屏会多一个 ExamHub 图标，独立窗口打开，断网也能刷题。",
         short: "装到桌面，断网也能背题",
+      };
+    }
+    if (NO_PWA && IS_MOBILE) {
+      return {
+        state: "nopwa",
+        tip: "QQ 浏览器、UC、夸克这类浏览器没有实现「安装 PWA」，最多给一个桌面快捷方式（点开还是浏览器界面）。想装成独立 App：在应用商店装 Edge 或 Chrome，用它打开本站 → 菜单 →「安装应用 / 添加到主屏幕」。",
+        short: "QQ 等浏览器装不了，换 Edge / Chrome",
+      };
+    }
+    if (!SECURE) {
+      return {
+        state: "insecure",
+        tip: "当前地址不是 https，浏览器不允许安装。手机请改用 https://xsw-1123.github.io/ExamHub/ ；局域网 http 只能当网页看。",
+        short: "",
       };
     }
     if (IS_IOS) {
@@ -686,8 +697,8 @@
     if (IS_ANDROID) {
       return {
         state: "android",
-        tip: "Chrome：点右上角「⋮」→「安装应用」或「添加到主屏幕」。",
-        short: "Chrome 菜单 → 安装应用",
+        tip: "当前浏览器没给安装入口。用 Chrome / Edge 打开本站：点右上角「⋮」→「安装应用」或「添加到主屏幕」。",
+        short: "Chrome / Edge 菜单 → 安装应用",
       };
     }
     return {
@@ -709,21 +720,26 @@
 
     const steps = $("#install-steps");
     if (steps) {
-      const list = g.state === "ios"
-        ? ["用 Safari 打开本页（微信 / QQ 内置浏览器不行）", "点底部「分享」按钮",
-           "选「添加到主屏幕」，右上角「添加」", "从新出现的 ExamHub 图标打开"]
-        : g.state === "android"
-          ? ["用 Chrome 打开本页", "点右上角「⋮」", "选「安装应用」或「添加到主屏幕」"]
-          : [];
+      const list =
+        g.state === "ios"
+          ? ["用 Safari 打开本页（微信 / QQ 内置浏览器不行）", "点底部「分享」按钮",
+             "选「添加到主屏幕」，右上角「添加」", "从新出现的 ExamHub 图标打开"]
+          : g.state === "android"
+            ? ["用 Chrome / Edge 打开本站", "点右上角「⋮」", "选「安装应用」或「添加到主屏幕」"]
+            : g.state === "nopwa"
+              ? ["在应用商店装 Edge（或 Chrome）", "用它打开 https://xsw-1123.github.io/ExamHub/",
+                 "菜单 →「添加到手机 / 安装应用」",
+                 "留在本浏览器也行：菜单「添加书签」勾选发送到桌面，但那只是快捷方式"]
+              : [];
       steps.innerHTML = list.map((s) => "<li>" + esc(s) + "</li>").join("");
       steps.hidden = list.length === 0;
     }
 
-    // 手机上的安装引导条：只有在确实能装的情况下才出现
+    // 手机上的安装引导条：能装、或需要解释为什么装不了时才出现
     const banner = $("#install-banner");
     if (!banner) return;
-    const canInstall = g.state === "prompt" || g.state === "ios" || g.state === "android";
-    const show = IS_MOBILE && canInstall && !hintDismissed();
+    const RELEVANT = ["prompt", "ios", "android", "nopwa"];
+    const show = IS_MOBILE && RELEVANT.includes(g.state) && !hintDismissed();
     banner.classList.toggle("hidden", !show);
     if (!show) return;
     $("#install-banner-text").textContent = g.short;
