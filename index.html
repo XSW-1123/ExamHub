@@ -3,8 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>MealNow 面试背题</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>">
+<title>ExamHub</title>
+<meta name="description" content="MealNow 面试背题：608 张卡片、SM-2 间隔重复、全文搜索与掌握度统计。纯静态、离线可用，进度只存本机。">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f6f5f2" id="meta-theme-color">
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="application-name" content="ExamHub">
+<meta name="apple-mobile-web-app-title" content="ExamHub">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -158,6 +171,13 @@
         <button class="btn" id="btn-import">⬆️ 导入进度</button>
         <input type="file" id="import-file" accept=".json" class="hidden">
         <button class="btn danger" id="btn-reset">🗑️ 清空进度</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>安装为应用</h3>
+      <p class="muted" id="install-tip">安装后可从桌面 / 任务栏直接启动，断网也能刷题；学习进度仍然只存在本机。</p>
+      <div class="btn-row">
+        <button class="btn hidden" id="btn-install">⬇️ 安装 ExamHub</button>
       </div>
     </div>
     <div class="panel">

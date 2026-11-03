@@ -583,6 +583,14 @@
     const dark = t === "dark" || (t === "auto" &&
       window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    syncThemeColor();
+  }
+  // 安装为应用后，标题栏 / 状态栏跟随主题取色
+  function syncThemeColor() {
+    const meta = $("#meta-theme-color");
+    if (!meta) return;
+    const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+    if (bg) meta.setAttribute("content", bg);
   }
   $("#theme-btn").addEventListener("click", () => {
     const order = ["auto", "light", "dark"];
@@ -615,6 +623,77 @@
     });
   });
 
+  /* =====================================================
+   * PWA：Service Worker 注册 + 安装引导
+   * ===================================================== */
+  const SECURE = location.protocol === "https:" ||
+    location.hostname === "localhost" || location.hostname === "127.0.0.1";
+  const standaloneQuery = window.matchMedia("(display-mode: standalone)");
+  const isStandalone = () => standaloneQuery.matches || window.navigator.standalone === true;
+  const INSTALL_TIP = "安装后可从桌面 / 任务栏直接启动，断网也能刷题；学习进度仍然只存在本机。";
+  let installEvent = null;
+
+  function updateInstallUI() {
+    const btn = $("#btn-install");
+    const tip = $("#install-tip");
+    if (!btn || !tip) return;
+    if (isStandalone()) {
+      btn.classList.add("hidden");
+      tip.textContent = "已在应用模式下运行，无需再次安装。";
+      return;
+    }
+    if (installEvent) {
+      btn.classList.remove("hidden");
+      tip.textContent = INSTALL_TIP;
+      return;
+    }
+    btn.classList.add("hidden");
+    if (!SECURE) {
+      tip.textContent = "当前用本地文件或局域网 IP 打开，浏览器不允许安装。改用 https（例如 GitHub Pages）或 http://127.0.0.1 访问即可安装。";
+    } else if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+      tip.textContent = "iPhone / iPad：点 Safari 底部的「分享」→「添加到主屏幕」。";
+    } else {
+      tip.textContent = "当前浏览器没有给出安装入口：可点地址栏右侧的安装图标，或换 Chrome / Edge 打开本页。";
+    }
+  }
+
+  $("#btn-install").addEventListener("click", async () => {
+    if (!installEvent) { updateInstallUI(); return; }
+    installEvent.prompt();
+    const choice = await installEvent.userChoice;
+    installEvent = null;
+    updateInstallUI();
+    toast(choice && choice.outcome === "accepted" ? "正在安装 ExamHub…" : "已取消安装");
+  });
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    installEvent = e;
+    updateInstallUI();
+  });
+  window.addEventListener("appinstalled", () => {
+    installEvent = null;
+    toast("ExamHub 已安装");
+    updateInstallUI();
+  });
+  standaloneQuery.addEventListener("change", updateInstallUI);
+
+  function registerSW() {
+    if (!("serviceWorker" in navigator) || !SECURE) return;
+    navigator.serviceWorker.register("sw.js", { scope: "./" }).then((reg) => {
+      reg.addEventListener("updatefound", () => {
+        const sw = reg.installing;
+        if (!sw) return;
+        sw.addEventListener("statechange", () => {
+          // 已有一个页面受控，说明这是更新而不是首次安装
+          if (sw.state === "installed" && navigator.serviceWorker.controller) {
+            toast("已缓存新版本，重新打开后生效", 3200);
+          }
+        });
+      });
+    }).catch(() => { /* file:// 或受限环境，静默降级 */ });
+  }
+
   /* ---------- 启动 ---------- */
   function init() {
     applyTheme();
@@ -622,6 +701,8 @@
     fillCatChips();
     $("#brand-sub").textContent = allIds.length + " 张卡片 · SM-2 间隔重复";
     startSession();
+    updateInstallUI();
+    registerSW();
   }
   init();
 })();
