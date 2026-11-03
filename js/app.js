@@ -624,47 +624,130 @@
   });
 
   /* =====================================================
-   * PWA：Service Worker 注册 + 安装引导
+   * PWA：Service Worker 注册 + 安装引导（桌面 / 手机）
    * ===================================================== */
   const SECURE = location.protocol === "https:" ||
     location.hostname === "localhost" || location.hostname === "127.0.0.1";
   const standaloneQuery = window.matchMedia("(display-mode: standalone)");
   const isStandalone = () => standaloneQuery.matches || window.navigator.standalone === true;
-  const INSTALL_TIP = "安装后可从桌面 / 任务栏直接启动，断网也能刷题；学习进度仍然只存在本机。";
+
+  const UA = navigator.userAgent;
+  const IS_IOS = /iPad|iPhone|iPod/.test(UA) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const IS_ANDROID = /Android/.test(UA);
+  const IS_MOBILE = IS_IOS || IS_ANDROID || /Mobile/.test(UA);
+  // 微信 / QQ / 钉钉等内置浏览器没有安装入口，必须先跳系统浏览器
+  const IS_INAPP = /MicroMessenger|QQ\/|DingTalk|Weibo|AlipayClient|BaiduBoxApp|Quark/i.test(UA);
+
+  const HINT_KEY = "examhub:install-hint-dismissed";
   let installEvent = null;
 
-  function updateInstallUI() {
-    const btn = $("#btn-install");
-    const tip = $("#install-tip");
-    if (!btn || !tip) return;
-    if (isStandalone()) {
-      btn.classList.add("hidden");
-      tip.textContent = "已在应用模式下运行，无需再次安装。";
-      return;
-    }
-    if (installEvent) {
-      btn.classList.remove("hidden");
-      tip.textContent = INSTALL_TIP;
-      return;
-    }
-    btn.classList.add("hidden");
-    if (!SECURE) {
-      tip.textContent = "当前用本地文件或局域网 IP 打开，浏览器不允许安装。改用 https（例如 GitHub Pages）或 http://127.0.0.1 访问即可安装。";
-    } else if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-      tip.textContent = "iPhone / iPad：点 Safari 底部的「分享」→「添加到主屏幕」。";
-    } else {
-      tip.textContent = "当前浏览器没有给出安装入口：可点地址栏右侧的安装图标，或换 Chrome / Edge 打开本页。";
-    }
+  function hintDismissed() {
+    try { return localStorage.getItem(HINT_KEY) === "1"; } catch (e) { return false; }
+  }
+  function dismissHint() {
+    try { localStorage.setItem(HINT_KEY, "1"); } catch (e) { /* 隐私模式忽略 */ }
+    $("#install-banner").classList.add("hidden");
   }
 
-  $("#btn-install").addEventListener("click", async () => {
+  /* 各平台安装方式；state 决定是否显示安装按钮与手机引导条 */
+  function installGuide() {
+    if (isStandalone()) {
+      return { state: "installed", tip: "已在应用模式下运行，无需再次安装。", short: "" };
+    }
+    if (IS_INAPP) {
+      return {
+        state: "inapp",
+        tip: "当前是微信 / QQ 等内置浏览器，装不了。先点右上角「···」→「在浏览器打开」，再按浏览器里的方式添加。",
+        short: "",
+      };
+    }
+    if (!SECURE) {
+      return {
+        state: "insecure",
+        tip: "当前地址不是 https，浏览器不允许安装。手机请改用 https://xsw-1123.github.io/ExamHub/ ；局域网 http 只能当网页看。",
+        short: "",
+      };
+    }
+    if (installEvent) {
+      return {
+        state: "prompt",
+        tip: "点下面的按钮即可安装：桌面 / 主屏会多一个 ExamHub 图标，独立窗口打开，断网也能刷题。",
+        short: "装到桌面，断网也能背题",
+      };
+    }
+    if (IS_IOS) {
+      return {
+        state: "ios",
+        tip: "Safari：点底部「分享」→「添加到主屏幕」→ 右上角「添加」。装好后请从桌面图标打开，它的进度与 Safari 里是分开的。",
+        short: "Safari 分享 → 添加到主屏幕",
+      };
+    }
+    if (IS_ANDROID) {
+      return {
+        state: "android",
+        tip: "Chrome：点右上角「⋮」→「安装应用」或「添加到主屏幕」。",
+        short: "Chrome 菜单 → 安装应用",
+      };
+    }
+    return {
+      state: "desktop",
+      tip: "当前浏览器没有给出安装入口：点地址栏右侧的安装图标，或换 Chrome / Edge 打开本页。",
+      short: "",
+    };
+  }
+
+  function updateInstallUI() {
+    const g = installGuide();
+
+    const btn = $("#btn-install");
+    const tip = $("#install-tip");
+    if (btn && tip) {
+      tip.textContent = g.tip;
+      btn.classList.toggle("hidden", g.state !== "prompt");
+    }
+
+    const steps = $("#install-steps");
+    if (steps) {
+      const list = g.state === "ios"
+        ? ["用 Safari 打开本页（微信 / QQ 内置浏览器不行）", "点底部「分享」按钮",
+           "选「添加到主屏幕」，右上角「添加」", "从新出现的 ExamHub 图标打开"]
+        : g.state === "android"
+          ? ["用 Chrome 打开本页", "点右上角「⋮」", "选「安装应用」或「添加到主屏幕」"]
+          : [];
+      steps.innerHTML = list.map((s) => "<li>" + esc(s) + "</li>").join("");
+      steps.hidden = list.length === 0;
+    }
+
+    // 手机上的安装引导条：只有在确实能装的情况下才出现
+    const banner = $("#install-banner");
+    if (!banner) return;
+    const canInstall = g.state === "prompt" || g.state === "ios" || g.state === "android";
+    const show = IS_MOBILE && canInstall && !hintDismissed();
+    banner.classList.toggle("hidden", !show);
+    if (!show) return;
+    $("#install-banner-text").textContent = g.short;
+    $("#install-banner-yes").textContent = g.state === "prompt" ? "安装" : "看步骤";
+  }
+
+  async function doInstall() {
     if (!installEvent) { updateInstallUI(); return; }
     installEvent.prompt();
     const choice = await installEvent.userChoice;
     installEvent = null;
     updateInstallUI();
     toast(choice && choice.outcome === "accepted" ? "正在安装 ExamHub…" : "已取消安装");
+  }
+
+  $("#btn-install").addEventListener("click", doInstall);
+  $("#install-banner-yes").addEventListener("click", () => {
+    if (installEvent) { doInstall(); return; }
+    dismissHint();
+    switchView("me");
+    const panel = $("#install-panel");
+    if (panel) setTimeout(() => panel.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
   });
+  $("#install-banner-no").addEventListener("click", dismissHint);
 
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
@@ -673,6 +756,8 @@
   });
   window.addEventListener("appinstalled", () => {
     installEvent = null;
+    try { localStorage.setItem(HINT_KEY, "1"); } catch (e) { /* ignore */ }
+    $("#install-banner").classList.add("hidden");
     toast("ExamHub 已安装");
     updateInstallUI();
   });

@@ -173,12 +173,13 @@
         <button class="btn danger" id="btn-reset">🗑️ 清空进度</button>
       </div>
     </div>
-    <div class="panel">
+    <div class="panel" id="install-panel">
       <h3>安装为应用</h3>
-      <p class="muted" id="install-tip">安装后可从桌面 / 任务栏直接启动，断网也能刷题；学习进度仍然只存在本机。</p>
+      <p class="muted" id="install-tip">安装后可从桌面 / 主屏直接启动，断网也能刷题；学习进度仍然只存在本机。</p>
       <div class="btn-row">
         <button class="btn hidden" id="btn-install">⬇️ 安装 ExamHub</button>
       </div>
+      <ol class="muted small-text install-steps" id="install-steps" hidden></ol>
     </div>
     <div class="panel">
       <h3>关于</h3>
@@ -210,6 +211,14 @@
     <div class="muted small-text" id="m-src"></div>
     <div class="card-body md" id="m-body"></div>
     <div class="btn-row modal-actions" id="m-actions"></div>
+  </div>
+</div>
+
+<div class="install-banner hidden" id="install-banner">
+  <div class="ib-text"><b>把 ExamHub 装成 App</b><br><span id="install-banner-text"></span></div>
+  <div class="ib-actions">
+    <button class="btn small" id="install-banner-yes">安装</button>
+    <button class="btn small ghost" id="install-banner-no">稍后</button>
   </div>
 </div>
 

@@ -45,7 +45,7 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   background: var(--bg); color: var(--ink);
-  line-height: 1.65; min-height: 100vh;
+  line-height: 1.65; min-height: 100vh; min-height: 100dvh;
 }
 .hidden { display: none !important; }
 button { font-family: inherit; cursor: pointer; }
@@ -80,7 +80,7 @@ kbd {
 }
 
 /* ============ 主区 ============ */
-#main { max-width: 860px; margin: 0 auto; padding: 16px 16px calc(var(--tabbar-h) + 28px); }
+#main { max-width: 860px; margin: 0 auto; padding: 16px 16px calc(var(--tabbar-h) + 28px + env(safe-area-inset-bottom)); }
 .view-title { font-size: 20px; margin: 6px 0 14px; }
 .view.hidden { display: none; }
 
@@ -281,7 +281,8 @@ kbd {
   background: color-mix(in srgb, var(--card) 92%, transparent);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   border-top: 1px solid var(--line);
-  display: flex; justify-content: space-around; height: var(--tabbar-h);
+  display: flex; justify-content: space-around;
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
 }
 .tab {
@@ -292,12 +293,26 @@ kbd {
 .tab span { font-size: 20px; line-height: 1; }
 .tab.active { color: var(--primary); font-weight: 700; }
 
+/* ============ 安装引导条（仅手机、未安装时） ============ */
+.install-banner {
+  position: fixed; left: 12px; right: 12px;
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 12px);
+  z-index: 50; display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 14px;
+  background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow);
+}
+.ib-text { flex: 1; min-width: 0; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.ib-text b { color: var(--ink); }
+.ib-actions { flex: none; display: flex; gap: 6px; }
+.install-steps { margin: 10px 0 0 20px; line-height: 1.9; }
+.install-steps li { margin: 2px 0; }
+
 /* ============ 弹层 ============ */
 .modal { position: fixed; inset: 0; z-index: 60; }
 .modal-mask { position: absolute; inset: 0; background: rgba(15,14,12,.5); }
 .modal-card {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: min(760px, calc(100vw - 24px)); max-height: min(84vh, 900px);
+  width: min(760px, calc(100vw - 24px)); max-height: min(84vh, 900px); max-height: min(84dvh, 900px);
   background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
   padding: 22px; overflow-y: auto; animation: pop .22s ease;
 }
@@ -338,7 +353,7 @@ kbd {
 
 /* ============ Toast ============ */
 .toast {
-  position: fixed; left: 50%; bottom: calc(var(--tabbar-h) + 20px); transform: translateX(-50%) translateY(20px);
+  position: fixed; left: 50%; bottom: calc(var(--tabbar-h) + 20px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(20px);
   background: var(--ink); color: var(--bg); padding: 10px 20px; border-radius: 12px;
   font-size: 14px; opacity: 0; pointer-events: none; transition: all .25s ease; z-index: 80;
   max-width: 80vw;
